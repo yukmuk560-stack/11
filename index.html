@@ -48,6 +48,14 @@
           </span>
           <span class="nav-label">AI Image Reference</span>
         </button>
+        <button class="nav-item" data-section="skills">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2l3 7h7l-5.5 4.5L18 22l-6-4-6 4 1.5-8.5L2 9h7z"/>
+            </svg>
+          </span>
+          <span class="nav-label">Скиллы</span>
+        </button>
       </nav>
 
       <div class="sidebar-footer">
@@ -72,6 +80,19 @@
     </aside>
 
     <main class="main">
+      <!-- Topbar with global search -->
+      <div class="topbar">
+        <div class="search-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" class="search-input" id="global-search" placeholder="Поиск по промптам, проектам, персонажам, скиллам…" autocomplete="off" />
+          <button class="search-clear" id="search-clear" hidden aria-label="Очистить">×</button>
+          <div class="search-results" id="search-results" hidden></div>
+        </div>
+      </div>
+
       <!-- =================== PROMPTS =================== -->
       <section class="section active" id="prompts-section">
         <header class="section-header">
@@ -81,11 +102,18 @@
           </div>
         </header>
 
-        <div class="tabs">
+        <div class="tabs network-tabs">
           <button class="tab active" data-network="seedance">Seedance 2.0</button>
           <button class="tab" data-network="veo">VEO OMNI GOOGLE</button>
           <button class="tab" data-network="kling">KLING</button>
-          <div class="tab-indicator" id="tab-indicator"></div>
+          <div class="tab-indicator" data-indicator="network"></div>
+        </div>
+
+        <div class="tabs group-tabs">
+          <button class="tab active" data-group="universal">Универсальные</button>
+          <button class="tab" data-group="trending">Трендовые</button>
+          <button class="tab" data-group="oneoff">Разовые</button>
+          <div class="tab-indicator" data-indicator="group"></div>
         </div>
 
         <div class="prompts-grid" id="prompts-list"></div>
@@ -120,6 +148,31 @@
 
           <div class="characters-list" id="characters-list"></div>
         </div>
+      </section>
+
+      <!-- =================== SKILLS =================== -->
+      <section class="section" id="skills-section">
+        <header class="section-header">
+          <div>
+            <h1 class="section-title">Скиллы</h1>
+            <p class="section-subtitle">Файлы <code>.md</code> / <code>.skill</code> с инструкциями и шаблонами</p>
+          </div>
+        </header>
+
+        <label class="upload-zone upload-zone-block" id="skills-upload-zone">
+          <div class="upload-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <p><b>Перетащите</b> файлы <code>.md</code> или <code>.skill</code> сюда, или нажмите для выбора</p>
+          <p style="font-size:11px; opacity:.7;">Можно загружать несколько файлов сразу</p>
+          <input type="file" id="skills-file-input" accept=".md,.skill,.txt,text/markdown,text/plain" multiple hidden />
+        </label>
+
+        <div class="skills-grid" id="skills-list"></div>
       </section>
     </main>
   </div>
