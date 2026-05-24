@@ -26,18 +26,58 @@
       </div>
 
       <nav class="nav">
-        <button class="nav-item active" data-section="prompts">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
-              <polyline points="10 9 9 9 8 9"/>
-            </svg>
-          </span>
-          <span class="nav-label">Промпты</span>
-        </button>
+        <!-- Промпты — раскрывающееся меню -->
+        <div class="nav-tree" id="nav-prompts-tree">
+          <button class="nav-item nav-parent open" data-toggle="prompts">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+            </span>
+            <span class="nav-label">Промпты</span>
+            <svg class="chevron" viewBox="0 0 12 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l5 5 5-5"/></svg>
+          </button>
+          <div class="nav-children open" data-children="prompts">
+            <!-- Универсальные -->
+            <button class="nav-subitem nav-parent open" data-toggle="universal" data-group="universal">
+              <span class="nav-label">Универсальные</span>
+              <svg class="chevron" viewBox="0 0 12 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l5 5 5-5"/></svg>
+            </button>
+            <div class="nav-children open" data-children="universal">
+              <button class="nav-leaf" data-group="universal" data-network="seedance">Seedance 2.0</button>
+              <button class="nav-leaf" data-group="universal" data-network="veo">VEO OMNI GOOGLE</button>
+              <button class="nav-leaf" data-group="universal" data-network="kling">KLING</button>
+            </div>
+
+            <!-- Трендовые -->
+            <button class="nav-subitem nav-parent" data-toggle="trending" data-group="trending">
+              <span class="nav-label">Трендовые</span>
+              <svg class="chevron" viewBox="0 0 12 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l5 5 5-5"/></svg>
+            </button>
+            <div class="nav-children" data-children="trending">
+              <button class="nav-leaf" data-group="trending" data-network="seedance">Seedance 2.0</button>
+              <button class="nav-leaf" data-group="trending" data-network="veo">VEO OMNI GOOGLE</button>
+              <button class="nav-leaf" data-group="trending" data-network="kling">KLING</button>
+            </div>
+
+            <!-- Разовые -->
+            <button class="nav-subitem nav-parent" data-toggle="oneoff" data-group="oneoff">
+              <span class="nav-label">Разовые</span>
+              <svg class="chevron" viewBox="0 0 12 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l5 5 5-5"/></svg>
+            </button>
+            <div class="nav-children" data-children="oneoff">
+              <button class="nav-leaf" data-group="oneoff" data-network="seedance">Seedance 2.0</button>
+              <button class="nav-leaf" data-group="oneoff" data-network="veo">VEO OMNI GOOGLE</button>
+              <button class="nav-leaf" data-group="oneoff" data-network="kling">KLING</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Image Reference -->
         <button class="nav-item" data-section="references">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -48,6 +88,8 @@
           </span>
           <span class="nav-label">AI Image Reference</span>
         </button>
+
+        <!-- Скиллы -->
         <button class="nav-item" data-section="skills">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -98,23 +140,9 @@
         <header class="section-header">
           <div>
             <h1 class="section-title">Промпты</h1>
-            <p class="section-subtitle">Текстовые промпты для нейросетей</p>
+            <p class="section-subtitle" id="prompts-breadcrumb">Универсальные · Seedance 2.0</p>
           </div>
         </header>
-
-        <div class="tabs network-tabs">
-          <button class="tab active" data-network="seedance">Seedance 2.0</button>
-          <button class="tab" data-network="veo">VEO OMNI GOOGLE</button>
-          <button class="tab" data-network="kling">KLING</button>
-          <div class="tab-indicator" data-indicator="network"></div>
-        </div>
-
-        <div class="tabs group-tabs">
-          <button class="tab active" data-group="universal">Универсальные</button>
-          <button class="tab" data-group="trending">Трендовые</button>
-          <button class="tab" data-group="oneoff">Разовые</button>
-          <div class="tab-indicator" data-indicator="group"></div>
-        </div>
 
         <div class="prompts-grid" id="prompts-list"></div>
       </section>

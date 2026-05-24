@@ -18,7 +18,7 @@ const ICONS = {
   doc:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
 };
 
-// ---------- GROUPS / NETWORKS DICTIONARIES ----------
+// ---------- DICTIONARIES ----------
 const NETWORKS = {
   seedance: 'Seedance 2.0',
   veo:      'VEO OMNI GOOGLE',
@@ -47,7 +47,7 @@ const state = {
 
 // ---------- INDEXED DB ----------
 const DB_NAME = 'ai-prompt-director';
-const DB_VERSION = 2; // bumped to add `skills`
+const DB_VERSION = 2;
 let db = null;
 
 function openDB() {
@@ -76,7 +76,6 @@ function openDB() {
 }
 
 const tx = (name, mode = 'readonly') => db.transaction(name, mode).objectStore(name);
-
 const dbGetAll = (store) => new Promise((res, rej) => { const r = tx(store).getAll(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
 const dbPut    = (store, item) => new Promise((res, rej) => { const r = tx(store, 'readwrite').put(item); r.onsuccess = () => res(item); r.onerror = () => rej(r.error); });
 const dbDelete = (store, id) => new Promise((res, rej) => { const r = tx(store, 'readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
@@ -100,8 +99,11 @@ const $$  = (sel, root = document) => root.querySelectorAll(sel);
 
 function escapeHtml(s = '') {
   return String(s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 function toast(msg, type = 'success') {
@@ -150,11 +152,10 @@ function fileExt(name = '') {
 }
 
 // ---------- MODAL ----------
-function openModal(html, { wide = false, xl = false } = {}) {
+function openModal(html, { narrow = false } = {}) {
   const overlay = $('#modal-overlay');
   const modal = $('#modal');
-  modal.classList.toggle('modal-wide', wide);
-  modal.classList.toggle('modal-xl', xl);
+  modal.classList.toggle('modal-narrow', narrow);
   $('#modal-body').innerHTML = html;
   overlay.hidden = false;
   setTimeout(() => {
@@ -190,7 +191,6 @@ async function loadPrompts() {
     if (n.group !== p.group || n.theme !== p.theme) migrated.push(n);
     return n;
   });
-  // persist defaults for legacy records
   for (const m of migrated) await dbPut('prompts', m);
   renderPrompts();
 }
@@ -206,17 +206,14 @@ function renderPrompts() {
       <div class="empty">
         <div class="empty-icon">${ICONS.empty}</div>
         <div class="empty-title">Здесь пока нет промптов</div>
-        <div class="empty-text">Раздел: <b>${escapeHtml(NETWORKS[state.network])}</b> · ${escapeHtml(GROUPS[state.group])}<br>Нажмите <b>+</b> чтобы добавить первый</div>
+        <div class="empty-text">${escapeHtml(GROUPS[state.group])} · <b>${escapeHtml(NETWORKS[state.network])}</b><br>Нажмите <b>+</b> чтобы добавить первый</div>
       </div>`;
     return;
   }
 
   list.innerHTML = filtered.map(p => `
     <article class="prompt-card" data-id="${p.id}">
-      <div class="prompt-card-header">
-        <span class="prompt-theme ${p.theme ? '' : 'empty'}">${escapeHtml(p.theme || 'без темы')}</span>
-        <div class="prompt-title">${escapeHtml(p.title || 'Без названия')}</div>
-      </div>
+      <div class="prompt-title">${escapeHtml(p.title || 'Без названия')}</div>
       <div class="prompt-content">${escapeHtml(p.content)}</div>
       <div class="prompt-actions">
         <button class="icon-btn icon-edit"   data-action="edit"   title="Редактировать">${ICONS.edit}</button>
@@ -233,7 +230,13 @@ function promptFormHTML(prompt = null) {
   return `
     <h2>${isEdit ? 'Редактировать промпт' : 'Новый промпт'}</h2>
     <form id="prompt-form">
-      <div class="field-row">
+      <div class="field-grid-3">
+        <div class="field">
+          <label>Группа</label>
+          <select class="select" name="group" required>
+            ${Object.entries(GROUPS).map(([k, v]) => `<option value="${k}" ${sel(k, prompt?.group || state.group)}>${escapeHtml(v)}</option>`).join('')}
+          </select>
+        </div>
         <div class="field">
           <label>Нейросеть</label>
           <select class="select" name="network" required>
@@ -241,19 +244,13 @@ function promptFormHTML(prompt = null) {
           </select>
         </div>
         <div class="field">
-          <label>Группа</label>
-          <select class="select" name="group" required>
-            ${Object.entries(GROUPS).map(([k, v]) => `<option value="${k}" ${sel(k, prompt?.group || state.group)}>${escapeHtml(v)}</option>`).join('')}
-          </select>
+          <label>Тема</label>
+          <input class="input" name="theme" maxlength="80" value="${escapeHtml(prompt?.theme || '')}" placeholder="Например: Природа, Портрет, Город" />
         </div>
       </div>
       <div class="field">
-        <label>Тема <span style="text-transform:none; color:var(--text-muted); font-weight:500;">— о чём промпт</span></label>
-        <input class="input" name="theme" maxlength="80" value="${escapeHtml(prompt?.theme || '')}" placeholder="Например: Природа, Портрет, Городской пейзаж" />
-      </div>
-      <div class="field">
         <label>Название</label>
-        <input class="input" name="title" maxlength="120" required value="${escapeHtml(prompt?.title || '')}" placeholder="Например: Cinematic close-up at golden hour" />
+        <input class="input" name="title" maxlength="200" required value="${escapeHtml(prompt?.title || '')}" placeholder="Например: Cinematic close-up at golden hour" />
       </div>
       <div class="field">
         <label>Текст промпта</label>
@@ -284,9 +281,7 @@ function openPromptModal(prompt = null) {
     };
     await dbPut('prompts', item);
     closeModal();
-    // переключим на тот раздел/группу, куда сохранили
-    setNetwork(item.network);
-    setGroup(item.group);
+    selectPromptCombo(item.group, item.network);
     await loadPrompts();
     toast(prompt ? 'Промпт обновлён' : 'Промпт создан');
   });
@@ -302,8 +297,7 @@ function openCopyModal(prompt) {
     </div>
     <div class="copy-block tall">${escapeHtml(prompt.content)}</div>
     <button class="btn-big-copy" id="big-copy">${ICONS.copy}<span>Копировать целиком</span></button>
-  `, { wide: true });
-
+  `);
   $('#big-copy').addEventListener('click', () => copyToClipboard(prompt.content));
 }
 
@@ -315,7 +309,7 @@ function openConfirm({ title = 'Удалить?', text = '', confirmText = 'Уд
       <button class="btn btn-secondary" data-close>Отмена</button>
       <button class="btn btn-danger" id="confirm-yes">${escapeHtml(confirmText)}</button>
     </div>
-  `);
+  `, { narrow: true });
   $('#confirm-yes').addEventListener('click', async () => { await onConfirm(); closeModal(); });
 }
 
@@ -327,9 +321,7 @@ async function loadProjectData() {
 }
 
 function getProjectPreview(projectId) {
-  const charIds = state.characters
-    .filter(c => c.projectId === projectId)
-    .map(c => c.id);
+  const charIds = state.characters.filter(c => c.projectId === projectId).map(c => c.id);
   if (!charIds.length) return null;
   const refs = state.references
     .filter(r => charIds.includes(r.characterId))
@@ -367,9 +359,7 @@ function renderProjects() {
     return `
       <article class="project-card" data-id="${p.id}">
         <div class="project-preview ${preview ? '' : 'empty'}">
-          ${preview
-            ? `<img src="${preview}" alt="${escapeHtml(p.name)}" loading="lazy" />`
-            : ICONS.folder}
+          ${preview ? `<img src="${preview}" alt="${escapeHtml(p.name)}" loading="lazy" />` : ICONS.folder}
         </div>
         <div class="project-body">
           <div class="project-name">${escapeHtml(p.name)}</div>
@@ -400,7 +390,7 @@ function openProjectModal(project = null) {
         <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
       </div>
     </form>
-  `);
+  `, { narrow: true });
   $('#project-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = new FormData(e.target).get('name').toString().trim();
@@ -494,7 +484,7 @@ function openCharacterModal(character = null) {
         <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Создать'}</button>
       </div>
     </form>
-  `);
+  `, { narrow: true });
   $('#character-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = new FormData(e.target).get('name').toString().trim();
@@ -538,7 +528,7 @@ function openReferenceModal(characterId, reference = null) {
         <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Добавить'}</button>
       </div>
     </form>
-  `, { wide: true });
+  `);
 
   if (!isEdit) {
     const zone    = $('#upload-zone');
@@ -596,7 +586,7 @@ function openReferenceViewer(reference) {
     <div class="modal-actions">
       <button class="btn btn-secondary" data-close>Закрыть</button>
     </div>
-  `, { wide: true });
+  `);
 }
 
 // ---------- SKILLS ----------
@@ -686,7 +676,7 @@ function openSkillViewer(skill) {
       <button class="btn btn-secondary" id="skill-download">${ICONS.download} Скачать</button>
       <button class="btn btn-primary"   id="skill-copy">${ICONS.copy} Копировать</button>
     </div>
-  `, { xl: true });
+  `);
 
   $('#skill-copy').addEventListener('click', () => copyToClipboard(skill.content));
   $('#skill-download').addEventListener('click', () => downloadText(skill.fileName, skill.content));
@@ -709,7 +699,7 @@ function openSkillRenameModal(skill) {
         <button type="submit"  class="btn btn-primary">Сохранить</button>
       </div>
     </form>
-  `);
+  `, { narrow: true });
   $('#skill-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -738,37 +728,26 @@ function highlight(text, query) {
 function searchAll(rawQuery) {
   const q = rawQuery.trim().toLowerCase();
   if (!q) return null;
-
   const results = { prompts: [], projects: [], characters: [], references: [], skills: [] };
-
   for (const p of state.prompts) {
     const hay = `${p.title} ${p.content} ${p.theme}`.toLowerCase();
     if (hay.includes(q)) results.prompts.push(p);
   }
-  for (const p of state.projects) {
-    if (p.name.toLowerCase().includes(q)) results.projects.push(p);
-  }
-  for (const c of state.characters) {
-    if (c.name.toLowerCase().includes(q)) results.characters.push(c);
-  }
-  for (const r of state.references) {
-    if ((r.angle || '').toLowerCase().includes(q)) results.references.push(r);
-  }
+  for (const p of state.projects)   if (p.name.toLowerCase().includes(q)) results.projects.push(p);
+  for (const c of state.characters) if (c.name.toLowerCase().includes(q)) results.characters.push(c);
+  for (const r of state.references) if ((r.angle || '').toLowerCase().includes(q)) results.references.push(r);
   for (const s of state.skills) {
     const hay = `${s.name} ${s.fileName} ${s.content}`.toLowerCase();
     if (hay.includes(q)) results.skills.push(s);
   }
-
   return results;
 }
 
 function renderSearchResults(query) {
   const wrap = $('#search-results');
   if (!query.trim()) { wrap.hidden = true; wrap.innerHTML = ''; return; }
-
   const r = searchAll(query);
-  const empty = ['prompts', 'projects', 'characters', 'references', 'skills'].every(k => !r[k].length);
-
+  const empty = ['prompts','projects','characters','references','skills'].every(k => !r[k].length);
   if (empty) {
     wrap.innerHTML = `<div class="search-empty">Ничего не найдено по запросу <b>«${escapeHtml(query)}»</b></div>`;
     wrap.hidden = false;
@@ -776,69 +755,53 @@ function renderSearchResults(query) {
   }
 
   const groups = [];
-
-  if (r.prompts.length) {
-    groups.push({
-      title: `Промпты (${r.prompts.length})`,
-      items: r.prompts.slice(0, 5).map(p => ({
-        kind: 'prompt', id: p.id,
-        icon: ICONS.doc,
-        title: highlight(p.title || 'Без названия', query),
-        meta: `${NETWORKS[p.network]} · ${GROUPS[p.group]}${p.theme ? ' · ' + highlight(p.theme, query) : ''}`,
-      })),
-    });
-  }
-  if (r.projects.length) {
-    groups.push({
-      title: `Проекты (${r.projects.length})`,
-      items: r.projects.slice(0, 5).map(p => ({
-        kind: 'project', id: p.id,
-        icon: ICONS.folder,
-        title: highlight(p.name, query),
-        meta: `${state.characters.filter(c => c.projectId === p.id).length} персонажей`,
-      })),
-    });
-  }
-  if (r.characters.length) {
-    groups.push({
-      title: `Персонажи (${r.characters.length})`,
-      items: r.characters.slice(0, 5).map(c => {
-        const pr = state.projects.find(x => x.id === c.projectId);
-        return {
-          kind: 'character', id: c.id, projectId: c.projectId,
-          icon: ICONS.user,
-          title: highlight(c.name, query),
-          meta: `Проект: ${pr ? escapeHtml(pr.name) : '—'}`,
-        };
-      }),
-    });
-  }
-  if (r.references.length) {
-    groups.push({
-      title: `Референсы (${r.references.length})`,
-      items: r.references.slice(0, 5).map(ref => {
-        const ch = state.characters.find(c => c.id === ref.characterId);
-        const pr = ch ? state.projects.find(p => p.id === ch.projectId) : null;
-        return {
-          kind: 'reference', id: ref.id,
-          icon: ICONS.image,
-          title: highlight(ref.angle || 'Без подписи', query),
-          meta: `${pr ? escapeHtml(pr.name) : ''} ${ch ? '· ' + escapeHtml(ch.name) : ''}`.trim(),
-        };
-      }),
-    });
-  }
-  if (r.skills.length) {
-    groups.push({
-      title: `Скиллы (${r.skills.length})`,
-      items: r.skills.slice(0, 5).map(s => ({
-        kind: 'skill', id: s.id,
-        icon: ICONS.star,
-        title: highlight(s.name, query),
-        meta: escapeHtml(s.fileName),
-      })),
-    });
-  }
+  if (r.prompts.length) groups.push({
+    title: `Промпты (${r.prompts.length})`,
+    items: r.prompts.slice(0, 5).map(p => ({
+      kind: 'prompt', id: p.id, icon: ICONS.doc,
+      title: highlight(p.title || 'Без названия', query),
+      meta: `${GROUPS[p.group]} · ${NETWORKS[p.network]}${p.theme ? ' · ' + highlight(p.theme, query) : ''}`,
+    })),
+  });
+  if (r.projects.length) groups.push({
+    title: `Проекты (${r.projects.length})`,
+    items: r.projects.slice(0, 5).map(p => ({
+      kind: 'project', id: p.id, icon: ICONS.folder,
+      title: highlight(p.name, query),
+      meta: `${state.characters.filter(c => c.projectId === p.id).length} персонажей`,
+    })),
+  });
+  if (r.characters.length) groups.push({
+    title: `Персонажи (${r.characters.length})`,
+    items: r.characters.slice(0, 5).map(c => {
+      const pr = state.projects.find(x => x.id === c.projectId);
+      return {
+        kind: 'character', id: c.id, projectId: c.projectId, icon: ICONS.user,
+        title: highlight(c.name, query),
+        meta: `Проект: ${pr ? escapeHtml(pr.name) : '—'}`,
+      };
+    }),
+  });
+  if (r.references.length) groups.push({
+    title: `Референсы (${r.references.length})`,
+    items: r.references.slice(0, 5).map(ref => {
+      const ch = state.characters.find(c => c.id === ref.characterId);
+      const pr = ch ? state.projects.find(p => p.id === ch.projectId) : null;
+      return {
+        kind: 'reference', id: ref.id, icon: ICONS.image,
+        title: highlight(ref.angle || 'Без подписи', query),
+        meta: `${pr ? escapeHtml(pr.name) : ''} ${ch ? '· ' + escapeHtml(ch.name) : ''}`.trim(),
+      };
+    }),
+  });
+  if (r.skills.length) groups.push({
+    title: `Скиллы (${r.skills.length})`,
+    items: r.skills.slice(0, 5).map(s => ({
+      kind: 'skill', id: s.id, icon: ICONS.star,
+      title: highlight(s.name, query),
+      meta: escapeHtml(s.fileName),
+    })),
+  });
 
   wrap.innerHTML = groups.map(g => `
     <div class="search-group">
@@ -861,10 +824,7 @@ async function navigateToSearchResult(kind, id, extra = {}) {
   if (kind === 'prompt') {
     const p = state.prompts.find(x => x.id === id);
     if (!p) return;
-    switchSection('prompts');
-    setNetwork(p.network);
-    setGroup(p.group);
-    renderPrompts();
+    selectPromptCombo(p.group, p.network);
     setTimeout(() => openCopyModal(p), 80);
   } else if (kind === 'project') {
     switchSection('references');
@@ -898,52 +858,82 @@ function closeSearchResults() {
   $('#search-clear').hidden = true;
 }
 
-// ---------- SECTION / NETWORK / GROUP SWITCHING ----------
+// ---------- NAVIGATION ----------
 function switchSection(name) {
   state.section = name;
-  $$('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.section === name));
   $$('.section').forEach(s => s.classList.toggle('active', s.id === `${name}-section`));
   $('#sidebar').classList.remove('open');
   if (name === 'references') showProjectsView();
   if (name === 'skills') renderSkills();
-  // recompute indicators after section becomes visible
-  setTimeout(moveTabIndicators, 0);
+  refreshNavState();
 }
 
-function setNetwork(net) {
-  if (!NETWORKS[net]) return;
-  state.network = net;
-  $$('.network-tabs .tab').forEach(t => t.classList.toggle('active', t.dataset.network === net));
-  moveTabIndicators();
+function selectPromptCombo(group, network) {
+  if (!GROUPS[group] || !NETWORKS[network]) return;
+  state.group = group;
+  state.network = network;
+
+  // Раскрыть нужные узлы
+  const promptsParent = $('[data-toggle="prompts"]');
+  const promptsChildren = $('[data-children="prompts"]');
+  promptsParent?.classList.add('open');
+  promptsChildren?.classList.add('open');
+
+  $$('.nav-subitem.nav-parent').forEach(p => {
+    const isOpen = p.dataset.toggle === group;
+    p.classList.toggle('open', isOpen);
+    const ch = $(`[data-children="${p.dataset.toggle}"]`);
+    if (ch) ch.classList.toggle('open', isOpen);
+  });
+
+  switchSection('prompts');
+  $('#prompts-breadcrumb').textContent = `${GROUPS[group]} · ${NETWORKS[network]}`;
+  renderPrompts();
 }
 
-function setGroup(g) {
-  if (!GROUPS[g]) return;
-  state.group = g;
-  $$('.group-tabs .tab').forEach(t => t.classList.toggle('active', t.dataset.group === g));
-  moveTabIndicators();
-}
-
-function moveTabIndicators() {
-  $$('.tabs').forEach(tabsEl => {
-    const active = tabsEl.querySelector('.tab.active');
-    const indicator = tabsEl.querySelector('.tab-indicator');
-    if (!active || !indicator) return;
-    indicator.style.width = `${active.offsetWidth}px`;
-    indicator.style.left  = `${active.offsetLeft}px`;
+function refreshNavState() {
+  // Top-level secciones (refs / skills)
+  $$('.nav-item[data-section]').forEach(item => {
+    item.classList.toggle('active', item.dataset.section === state.section);
+  });
+  // Leaves
+  $$('.nav-leaf').forEach(leaf => {
+    const isMatch = state.section === 'prompts'
+      && leaf.dataset.group === state.group
+      && leaf.dataset.network === state.network;
+    leaf.classList.toggle('active', isMatch);
+  });
+  // Parent indicators
+  const promptsParent = $('[data-toggle="prompts"]');
+  if (promptsParent) promptsParent.classList.toggle('has-current', state.section === 'prompts');
+  $$('.nav-subitem.nav-parent').forEach(p => {
+    p.classList.toggle('has-current', state.section === 'prompts' && p.dataset.toggle === state.group);
   });
 }
 
 // ---------- EVENT WIRING ----------
-$$('.nav-item').forEach(btn => {
-  btn.addEventListener('click', () => switchSection(btn.dataset.section));
+
+// Sidebar: parent toggle (only expand/collapse, no navigation)
+$$('.nav-parent').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const target = btn.dataset.toggle;
+    const children = $(`[data-children="${target}"]`);
+    if (!children) return;
+    const willOpen = !btn.classList.contains('open');
+    btn.classList.toggle('open', willOpen);
+    children.classList.toggle('open', willOpen);
+  });
 });
 
-$$('.network-tabs .tab').forEach(t => {
-  t.addEventListener('click', () => { setNetwork(t.dataset.network); renderPrompts(); });
+// Sidebar: leaves (select group + network)
+$$('.nav-leaf').forEach(leaf => {
+  leaf.addEventListener('click', () => selectPromptCombo(leaf.dataset.group, leaf.dataset.network));
 });
-$$('.group-tabs .tab').forEach(t => {
-  t.addEventListener('click', () => { setGroup(t.dataset.group); renderPrompts(); });
+
+// Sidebar: top-level items (refs, skills)
+$$('.nav-item[data-section]').forEach(btn => {
+  btn.addEventListener('click', () => switchSection(btn.dataset.section));
 });
 
 // FAB
@@ -1014,7 +1004,6 @@ $('#characters-list').addEventListener('click', (e) => {
   const charId = charEl.dataset.characterId;
   const character = state.characters.find(c => c.id === charId);
   if (!character) return;
-
   const refEl  = e.target.closest('.ref-card');
   const action = e.target.closest('[data-action]')?.dataset.action;
 
@@ -1193,8 +1182,6 @@ $('#import-file').addEventListener('change', async (e) => {
   finally { e.target.value = ''; }
 });
 
-window.addEventListener('resize', moveTabIndicators);
-
 // ---------- INIT ----------
 (async function init() {
   try {
@@ -1202,7 +1189,7 @@ window.addEventListener('resize', moveTabIndicators);
     await loadPrompts();
     await loadProjectData();
     await loadSkills();
-    moveTabIndicators();
+    selectPromptCombo(DEFAULT_GROUP, DEFAULT_NETWORK);
   } catch (err) {
     console.error(err);
     toast('Ошибка инициализации БД', 'error');
