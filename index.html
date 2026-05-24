@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Prompt Director</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <button class="menu-toggle" id="menu-toggle" aria-label="Меню">
+    <span></span><span></span><span></span>
+  </button>
+
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <div class="logo-title">AI PROMPT</div>
+          <div class="logo-subtitle">DIRECTOR</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-section="prompts">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </span>
+          <span class="nav-label">Промпты</span>
+        </button>
+        <button class="nav-item" data-section="references">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </span>
+          <span class="nav-label">AI Image Reference</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="btn-ghost" id="export-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Экспорт
+        </button>
+        <button class="btn-ghost" id="import-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Импорт
+        </button>
+        <input type="file" id="import-file" accept="application/json" hidden />
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- =================== PROMPTS =================== -->
+      <section class="section active" id="prompts-section">
+        <header class="section-header">
+          <div>
+            <h1 class="section-title">Промпты</h1>
+            <p class="section-subtitle">Текстовые промпты для нейросетей</p>
+          </div>
+        </header>
+
+        <div class="tabs">
+          <button class="tab active" data-network="seedance">Seedance 2.0</button>
+          <button class="tab" data-network="veo">VEO OMNI GOOGLE</button>
+          <button class="tab" data-network="kling">KLING</button>
+          <div class="tab-indicator" id="tab-indicator"></div>
+        </div>
+
+        <div class="prompts-grid" id="prompts-list"></div>
+      </section>
+
+      <!-- =================== REFERENCES =================== -->
+      <section class="section" id="references-section">
+        <div id="projects-view">
+          <header class="section-header">
+            <div>
+              <h1 class="section-title">AI Image Reference</h1>
+              <p class="section-subtitle">Проекты и визуальные референсы</p>
+            </div>
+          </header>
+          <div class="projects-grid" id="projects-list"></div>
+        </div>
+
+        <div id="project-detail-view" hidden>
+          <header class="section-header detail-header">
+            <button class="back-btn" id="back-to-projects">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+              </svg>
+              Все проекты
+            </button>
+            <div class="detail-title-block">
+              <h1 class="section-title" id="project-title">Проект</h1>
+              <p class="section-subtitle" id="project-subtitle">Персонажи и референсы</p>
+            </div>
+          </header>
+
+          <div class="characters-list" id="characters-list"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Floating Action Button -->
+  <button class="fab" id="fab" aria-label="Добавить">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+      <line x1="12" y1="5" x2="12" y2="19"/>
+      <line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </button>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="modal-overlay" hidden>
+    <div class="modal" id="modal">
+      <button class="modal-close" id="modal-close" aria-label="Закрыть">×</button>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
