@@ -89,6 +89,21 @@
           <span class="nav-label">AI Image Reference</span>
         </button>
 
+        <!-- Нейросети (воркспейс) -->
+        <button class="nav-item" data-section="networks">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="6" cy="6" r="2.5"/>
+              <circle cx="18" cy="6" r="2.5"/>
+              <circle cx="12" cy="18" r="2.5"/>
+              <line x1="8" y1="7" x2="10.5" y2="16"/>
+              <line x1="16" y1="7" x2="13.5" y2="16"/>
+              <line x1="8.5" cy="6" x2="15.5" y2="6"/>
+            </svg>
+          </span>
+          <span class="nav-label">Нейросети</span>
+        </button>
+
         <!-- Скиллы -->
         <button class="nav-item" data-section="skills">
           <span class="nav-icon">
@@ -129,8 +144,15 @@
             <circle cx="11" cy="11" r="8"/>
             <line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          <input type="text" class="search-input" id="global-search" placeholder="Поиск по промптам, проектам, персонажам, скиллам…" autocomplete="off" />
-          <button class="search-clear" id="search-clear" hidden aria-label="Очистить">×</button>
+          <input type="text" class="search-input" id="global-search" placeholder="Поиск по промптам, проектам, персонажам, скиллам, нейросетям…" autocomplete="off" />
+          <kbd class="search-kbd" id="search-kbd">Ctrl K</kbd>
+          <button class="search-clear" id="search-clear" hidden aria-label="Очистить всё">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+            <span class="search-clear-label">Очистить</span>
+          </button>
           <div class="search-results" id="search-results" hidden></div>
         </div>
       </div>
@@ -178,7 +200,61 @@
         </div>
       </section>
 
-      <!-- =================== SKILLS =================== -->
+      <!-- =================== NETWORKS WORKSPACE =================== -->
+      <section class="section" id="networks-section">
+        <header class="section-header">
+          <div>
+            <h1 class="section-title">Нейросети</h1>
+            <p class="section-subtitle">Воркспейс: ноды-кнопки и текстовые блоки на бесконечном холсте</p>
+          </div>
+        </header>
+
+        <div class="canvas-wrap" id="canvas-wrap">
+          <!-- Toolbar (NOT transformed) -->
+          <div class="canvas-toolbar">
+            <button class="canvas-tool" data-add="button" title="Добавить кнопку нейросети">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="3" y="8" width="18" height="9" rx="2"/><circle cx="12" cy="12.5" r="1.2" fill="currentColor"/></svg>
+              <span>Кнопка</span>
+            </button>
+            <button class="canvas-tool" data-add="text" title="Добавить текстовый блок">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="13" x2="16" y2="13"/><line x1="4" y1="18" x2="13" y2="18"/></svg>
+              <span>Текст</span>
+            </button>
+            <div class="canvas-divider"></div>
+            <button class="canvas-tool icon-only" id="canvas-zoom-in" title="Увеличить">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <span class="canvas-zoom-info" id="canvas-zoom">100%</span>
+            <button class="canvas-tool icon-only" id="canvas-zoom-out" title="Уменьшить">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <button class="canvas-tool icon-only" id="canvas-fit" title="Показать всё">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="4 9 4 4 9 4"/><polyline points="20 9 20 4 15 4"/><polyline points="4 15 4 20 9 20"/><polyline points="20 15 20 20 15 20"/></svg>
+            </button>
+          </div>
+
+          <!-- Transformed inner -->
+          <div class="canvas-inner" id="canvas-inner">
+            <svg class="canvas-edges" id="canvas-edges" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+                  <path d="M0,0 L10,5 L0,10 z" fill="rgba(168,85,247,0.7)"/>
+                </marker>
+              </defs>
+              <g id="canvas-edges-group"></g>
+            </svg>
+            <div class="canvas-nodes" id="canvas-nodes"></div>
+          </div>
+
+          <div class="canvas-hint" id="canvas-hint">
+            <div class="canvas-hint-title">Бесконечный холст</div>
+            <div>Нажмите <b>Кнопка</b> или <b>Текст</b> чтобы добавить ноду</div>
+            <div style="margin-top:6px; opacity:.7; font-size:11px;">
+              Зажмите фон — двигаете холст · колесо мыши — зум · тяните за <span style="color:var(--accent);">●</span> на боку ноды чтобы соединить
+            </div>
+          </div>
+        </div>
+      </section>
       <section class="section" id="skills-section">
         <header class="section-header">
           <div>

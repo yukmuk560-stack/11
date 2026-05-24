@@ -43,11 +43,19 @@ const state = {
   characters: [],
   references: [],
   skills: [],
+  canvas: {
+    nodes: [],
+    edges: [],
+    panX: 0,
+    panY: 0,
+    zoom: 1,
+    initialised: false,
+  },
 };
 
 // ---------- INDEXED DB ----------
 const DB_NAME = 'ai-prompt-director';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 let db = null;
 
 function openDB() {
@@ -69,6 +77,12 @@ function openDB() {
         s.createIndex('characterId', 'characterId', { unique: false });
       }
       if (!_db.objectStoreNames.contains('skills'))     _db.createObjectStore('skills',     { keyPath: 'id' });
+      if (!_db.objectStoreNames.contains('canvas_nodes')) _db.createObjectStore('canvas_nodes', { keyPath: 'id' });
+      if (!_db.objectStoreNames.contains('canvas_edges')) {
+        const s = _db.createObjectStore('canvas_edges', { keyPath: 'id' });
+        s.createIndex('fromId', 'fromId', { unique: false });
+        s.createIndex('toId',   'toId',   { unique: false });
+      }
     };
     req.onsuccess = (e) => resolve(e.target.result);
     req.onerror   = (e) => reject(e.target.error);
@@ -717,6 +731,431 @@ function openSkillRenameModal(skill) {
   });
 }
 
+// ---------- CANVAS / NETWORKS WORKSPACE ----------
+async function loadCanvas() {
+  state.canvas.nodes = await dbGetAll('canvas_nodes');
+  state.canvas.edges = await dbGetAll('canvas_edges');
+  if (!state.canvas.initialised) {
+    state.canvas.initialised = true;
+    centerCanvasViewport();
+  }
+  renderCanvas();
+}
+
+function centerCanvasViewport() {
+  const wrap = $('#canvas-wrap');
+  if (!wrap) return;
+  const rect = wrap.getBoundingClientRect();
+  if (state.canvas.nodes.length === 0) {
+    state.canvas.panX = rect.width / 2;
+    state.canvas.panY = rect.height / 2;
+    state.canvas.zoom = 1;
+  }
+}
+
+function applyCanvasTransform() {
+  const inner = $('#canvas-inner');
+  if (!inner) return;
+  inner.style.transform = `translate(${state.canvas.panX}px, ${state.canvas.panY}px) scale(${state.canvas.zoom})`;
+  $('#canvas-zoom').textContent = `${Math.round(state.canvas.zoom * 100)}%`;
+}
+
+function nodeHTML(n) {
+  if (n.type === 'button') {
+    return `
+      <div class="canvas-node btn" data-id="${n.id}" data-type="button" style="left:${n.x}px; top:${n.y}px;">
+        <div class="canvas-node-name">${escapeHtml(n.name || 'Без названия')}</div>
+        ${n.url ? `<div class="canvas-node-url">${escapeHtml(n.url)}</div>` : `<div class="canvas-node-url" style="font-style:italic; color:var(--text-muted)">URL не задан</div>`}
+        <div class="node-handle left"  data-side="left"></div>
+        <div class="node-handle right" data-side="right"></div>
+        <div class="canvas-node-actions">
+          ${n.url ? `<button class="open" data-action="open-url" title="Открыть URL"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>` : ''}
+          <button data-action="edit-node" title="Редактировать">${ICONS.edit}</button>
+          <button class="delete" data-action="delete-node" title="Удалить">×</button>
+        </div>
+      </div>`;
+  }
+  return `
+    <div class="canvas-node txt" data-id="${n.id}" data-type="text" style="left:${n.x}px; top:${n.y}px;">
+      <div class="canvas-node-text">${escapeHtml(n.text || '')}</div>
+      <div class="node-handle left"  data-side="left"></div>
+      <div class="node-handle right" data-side="right"></div>
+      <div class="canvas-node-actions">
+        <button data-action="edit-node" title="Редактировать">${ICONS.edit}</button>
+        <button class="delete" data-action="delete-node" title="Удалить">×</button>
+      </div>
+    </div>`;
+}
+
+function renderCanvas() {
+  const nodesEl = $('#canvas-nodes');
+  if (!nodesEl) return;
+  nodesEl.innerHTML = state.canvas.nodes.map(nodeHTML).join('');
+  $('#canvas-hint')?.classList.toggle('hidden', state.canvas.nodes.length > 0);
+  applyCanvasTransform();
+
+  requestAnimationFrame(() => {
+    state.canvas.nodes.forEach(n => {
+      const el = nodesEl.querySelector(`.canvas-node[data-id="${n.id}"]`);
+      if (el) {
+        n._w = el.offsetWidth;
+        n._h = el.offsetHeight;
+      }
+    });
+    renderEdges();
+  });
+}
+
+function edgePath(a, b) {
+  const aw = a._w || 200, ah = a._h || 60;
+  const bw = b._w || 200, bh = b._h || 60;
+  const ax = a.x + aw / 2, ay = a.y + ah / 2;
+  const bx = b.x + bw / 2, by = b.y + bh / 2;
+  const dx = bx - ax;
+  const offset = Math.max(40, Math.abs(dx) * 0.4);
+  // Exit/enter from right or left side based on relative position
+  const aSide = dx >= 0 ? aw / 2 : -aw / 2;
+  const bSide = dx >= 0 ? -bw / 2 : bw / 2;
+  const sx = ax + aSide, sy = ay;
+  const ex = bx + bSide, ey = by;
+  return `M ${sx} ${sy} C ${sx + (dx >= 0 ? offset : -offset)} ${sy}, ${ex + (dx >= 0 ? -offset : offset)} ${ey}, ${ex} ${ey}`;
+}
+
+function renderEdges() {
+  const group = $('#canvas-edges-group');
+  if (!group) return;
+  group.innerHTML = state.canvas.edges.map(c => {
+    const a = state.canvas.nodes.find(n => n.id === c.fromId);
+    const b = state.canvas.nodes.find(n => n.id === c.toId);
+    if (!a || !b) return '';
+    return `<path d="${edgePath(a, b)}" data-id="${c.id}" />`;
+  }).join('');
+}
+
+const cleanNode = (n) => {
+  const { _w, _h, ...rest } = n;
+  return rest;
+};
+
+async function addCanvasNode(type, props = {}) {
+  const wrap = $('#canvas-wrap');
+  const rect = wrap.getBoundingClientRect();
+  // Place at viewport center, offset slightly to avoid stacking
+  const cx = (rect.width / 2 - state.canvas.panX) / state.canvas.zoom;
+  const cy = (rect.height / 2 - state.canvas.panY) / state.canvas.zoom;
+  const jitter = state.canvas.nodes.length * 18;
+  const node = {
+    id: uid(),
+    type,
+    x: Math.round(cx - 100 + jitter),
+    y: Math.round(cy - 30 + jitter),
+    name: type === 'button' ? 'Новая нейросеть' : '',
+    url:  type === 'button' ? 'https://' : '',
+    text: type === 'text'   ? 'Новый текстовый блок' : '',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+  await dbPut('canvas_nodes', cleanNode(node));
+  state.canvas.nodes.push(node);
+  renderCanvas();
+  // Открыть редактор сразу для удобства
+  setTimeout(() => openNodeEditor(node), 80);
+}
+
+async function deleteCanvasNode(id) {
+  // удалить связанные рёбра
+  const linked = state.canvas.edges.filter(e => e.fromId === id || e.toId === id);
+  for (const e of linked) await dbDelete('canvas_edges', e.id);
+  state.canvas.edges = state.canvas.edges.filter(e => e.fromId !== id && e.toId !== id);
+  await dbDelete('canvas_nodes', id);
+  state.canvas.nodes = state.canvas.nodes.filter(n => n.id !== id);
+  renderCanvas();
+}
+
+async function addCanvasEdge(fromId, toId) {
+  if (fromId === toId) return;
+  const exists = state.canvas.edges.find(e => e.fromId === fromId && e.toId === toId);
+  if (exists) return;
+  const edge = { id: uid(), fromId, toId, createdAt: Date.now() };
+  await dbPut('canvas_edges', edge);
+  state.canvas.edges.push(edge);
+  renderEdges();
+}
+
+function openNodeEditor(node) {
+  if (node.type === 'button') {
+    openModal(`
+      <h2>${escapeHtml(node.name) ? 'Редактировать кнопку' : 'Новая кнопка'}</h2>
+      <form id="node-form">
+        <div class="field">
+          <label>Название нейросети</label>
+          <input class="input" name="name" required maxlength="120" value="${escapeHtml(node.name || '')}" placeholder="Например: ChatGPT, Midjourney, Sora" />
+        </div>
+        <div class="field">
+          <label>URL</label>
+          <input class="input" name="url" type="url" required value="${escapeHtml(node.url || '')}" placeholder="https://..." />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" data-close>Отмена</button>
+          <button type="submit"  class="btn btn-primary">Сохранить</button>
+        </div>
+      </form>
+    `, { narrow: true });
+  } else {
+    openModal(`
+      <h2>${node.text ? 'Редактировать текст' : 'Новый текстовый блок'}</h2>
+      <form id="node-form">
+        <div class="field">
+          <label>Текст</label>
+          <textarea class="textarea" name="text" required placeholder="Свяжите этот блок с кнопкой нейросети…">${escapeHtml(node.text || '')}</textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" data-close>Отмена</button>
+          <button type="submit"  class="btn btn-primary">Сохранить</button>
+        </div>
+      </form>
+    `);
+  }
+
+  $('#node-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const updated = { ...node, updatedAt: Date.now() };
+    if (node.type === 'button') {
+      updated.name = fd.get('name').toString().trim();
+      updated.url  = fd.get('url').toString().trim();
+    } else {
+      updated.text = fd.get('text').toString().trim();
+    }
+    await dbPut('canvas_nodes', cleanNode(updated));
+    const idx = state.canvas.nodes.findIndex(n => n.id === node.id);
+    if (idx >= 0) state.canvas.nodes[idx] = updated;
+    closeModal();
+    renderCanvas();
+    toast('Нода обновлена');
+  });
+}
+
+// ----- canvas pan / drag / zoom / connect -----
+let canvasInteraction = null; // {mode: 'pan'|'drag'|'wire', ...}
+
+function initCanvasEvents() {
+  const wrap = $('#canvas-wrap');
+  if (!wrap || wrap.dataset.bound === '1') return;
+  wrap.dataset.bound = '1';
+
+  wrap.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    if (e.target.closest('[data-action]')) return;
+
+    const handle = e.target.closest('.node-handle');
+    if (handle) {
+      const nodeEl = handle.closest('.canvas-node');
+      if (!nodeEl) return;
+      e.preventDefault(); e.stopPropagation();
+      canvasInteraction = {
+        mode: 'wire',
+        fromId: nodeEl.dataset.id,
+        targetEl: null,
+      };
+      nodeEl.classList.add('connecting-source');
+      wrap.classList.add('connecting');
+      return;
+    }
+
+    const nodeEl = e.target.closest('.canvas-node');
+    if (nodeEl) {
+      e.preventDefault();
+      const node = state.canvas.nodes.find(n => n.id === nodeEl.dataset.id);
+      if (!node) return;
+      canvasInteraction = {
+        mode: 'drag',
+        nodeId: node.id,
+        startMouseX: e.clientX,
+        startMouseY: e.clientY,
+        startNodeX: node.x,
+        startNodeY: node.y,
+        moved: false,
+      };
+      return;
+    }
+
+    // Pan
+    e.preventDefault();
+    canvasInteraction = {
+      mode: 'pan',
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startPanX: state.canvas.panX,
+      startPanY: state.canvas.panY,
+    };
+    wrap.classList.add('panning');
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!canvasInteraction) return;
+    if (canvasInteraction.mode === 'pan') {
+      state.canvas.panX = canvasInteraction.startPanX + (e.clientX - canvasInteraction.startMouseX);
+      state.canvas.panY = canvasInteraction.startPanY + (e.clientY - canvasInteraction.startMouseY);
+      applyCanvasTransform();
+    } else if (canvasInteraction.mode === 'drag') {
+      const dx = (e.clientX - canvasInteraction.startMouseX) / state.canvas.zoom;
+      const dy = (e.clientY - canvasInteraction.startMouseY) / state.canvas.zoom;
+      if (Math.abs(dx) + Math.abs(dy) > 2) canvasInteraction.moved = true;
+      const node = state.canvas.nodes.find(n => n.id === canvasInteraction.nodeId);
+      if (!node) return;
+      node.x = Math.round(canvasInteraction.startNodeX + dx);
+      node.y = Math.round(canvasInteraction.startNodeY + dy);
+      const el = $(`.canvas-node[data-id="${node.id}"]`);
+      if (el) {
+        el.style.left = `${node.x}px`;
+        el.style.top  = `${node.y}px`;
+      }
+      renderEdges();
+    } else if (canvasInteraction.mode === 'wire') {
+      drawTempWire(e);
+      // подсветить ноду под курсором
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const nodeEl = el?.closest('.canvas-node');
+      if (canvasInteraction.targetEl && canvasInteraction.targetEl !== nodeEl) {
+        canvasInteraction.targetEl.classList.remove('selected');
+      }
+      canvasInteraction.targetEl = nodeEl && nodeEl.dataset.id !== canvasInteraction.fromId ? nodeEl : null;
+      if (canvasInteraction.targetEl) canvasInteraction.targetEl.classList.add('selected');
+    }
+  });
+
+  window.addEventListener('mouseup', async (e) => {
+    if (!canvasInteraction) return;
+    const m = canvasInteraction;
+    if (m.mode === 'pan') {
+      wrap.classList.remove('panning');
+    } else if (m.mode === 'drag') {
+      const node = state.canvas.nodes.find(n => n.id === m.nodeId);
+      if (node) await dbPut('canvas_nodes', cleanNode(node));
+    } else if (m.mode === 'wire') {
+      $$('.canvas-node.connecting-source').forEach(el => el.classList.remove('connecting-source'));
+      $$('.canvas-node.selected').forEach(el => el.classList.remove('selected'));
+      wrap.classList.remove('connecting');
+      $('#canvas-tempwire')?.remove();
+      const targetEl = document.elementFromPoint(e.clientX, e.clientY)?.closest('.canvas-node');
+      if (targetEl && targetEl.dataset.id !== m.fromId) {
+        await addCanvasEdge(m.fromId, targetEl.dataset.id);
+        toast('Связь создана');
+      }
+    }
+    canvasInteraction = null;
+  });
+
+  wrap.addEventListener('wheel', (e) => {
+    if (state.section !== 'networks') return;
+    e.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const factor = e.deltaY < 0 ? 1.12 : 0.89;
+    const newZoom = Math.max(0.25, Math.min(3, state.canvas.zoom * factor));
+    state.canvas.panX = mx - (mx - state.canvas.panX) * (newZoom / state.canvas.zoom);
+    state.canvas.panY = my - (my - state.canvas.panY) * (newZoom / state.canvas.zoom);
+    state.canvas.zoom = newZoom;
+    applyCanvasTransform();
+  }, { passive: false });
+
+  // Клики по action-кнопкам внутри нод
+  wrap.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const nodeEl = btn.closest('.canvas-node');
+    if (!nodeEl) return;
+    const node = state.canvas.nodes.find(n => n.id === nodeEl.dataset.id);
+    if (!node) return;
+    e.stopPropagation();
+    const action = btn.dataset.action;
+    if (action === 'open-url' && node.url) {
+      window.open(node.url, '_blank', 'noopener');
+    } else if (action === 'edit-node') {
+      openNodeEditor(node);
+    } else if (action === 'delete-node') {
+      const label = node.type === 'button' ? `«${node.name || 'Без названия'}»` : 'этот текстовый блок';
+      openConfirm({
+        title: 'Удалить ноду?',
+        text: `Удалить ${label} и все её связи?`,
+        onConfirm: async () => {
+          await deleteCanvasNode(node.id);
+          toast('Нода удалена');
+        },
+      });
+    }
+  });
+}
+
+function drawTempWire(e) {
+  const m = canvasInteraction;
+  if (!m || m.mode !== 'wire') return;
+  const a = state.canvas.nodes.find(n => n.id === m.fromId);
+  if (!a) return;
+  const wrap = $('#canvas-wrap');
+  const rect = wrap.getBoundingClientRect();
+  const mx = (e.clientX - rect.left - state.canvas.panX) / state.canvas.zoom;
+  const my = (e.clientY - rect.top  - state.canvas.panY) / state.canvas.zoom;
+
+  const aw = a._w || 200, ah = a._h || 60;
+  const ax = a.x + aw / 2, ay = a.y + ah / 2;
+  const dx = mx - ax;
+  const offset = Math.max(40, Math.abs(dx) * 0.4);
+  const sx = ax + (dx >= 0 ? aw / 2 : -aw / 2);
+  const path = `M ${sx} ${ay} C ${sx + (dx >= 0 ? offset : -offset)} ${ay}, ${mx + (dx >= 0 ? -offset : offset)} ${my}, ${mx} ${my}`;
+
+  let p = $('#canvas-tempwire');
+  if (!p) {
+    p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.id = 'canvas-tempwire';
+    p.setAttribute('class', 'canvas-tempwire');
+    $('#canvas-edges-group').appendChild(p);
+  }
+  p.setAttribute('d', path);
+}
+
+function fitCanvasToContent() {
+  const wrap = $('#canvas-wrap');
+  if (!wrap) return;
+  const rect = wrap.getBoundingClientRect();
+  if (state.canvas.nodes.length === 0) {
+    state.canvas.panX = rect.width / 2;
+    state.canvas.panY = rect.height / 2;
+    state.canvas.zoom = 1;
+    applyCanvasTransform();
+    return;
+  }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  state.canvas.nodes.forEach(n => {
+    const w = n._w || 200, h = n._h || 60;
+    minX = Math.min(minX, n.x);
+    minY = Math.min(minY, n.y);
+    maxX = Math.max(maxX, n.x + w);
+    maxY = Math.max(maxY, n.y + h);
+  });
+  const pad = 80;
+  const contentW = maxX - minX + pad * 2;
+  const contentH = maxY - minY + pad * 2;
+  const zoom = Math.min(rect.width / contentW, rect.height / contentH, 1.5);
+  state.canvas.zoom = Math.max(0.25, zoom);
+  state.canvas.panX = (rect.width  - (maxX + minX) * state.canvas.zoom) / 2;
+  state.canvas.panY = (rect.height - (maxY + minY) * state.canvas.zoom) / 2;
+  applyCanvasTransform();
+}
+
+function centerCanvasOnNode(n) {
+  const wrap = $('#canvas-wrap');
+  if (!wrap) return;
+  const rect = wrap.getBoundingClientRect();
+  const w = n._w || 200, h = n._h || 60;
+  state.canvas.zoom = 1;
+  state.canvas.panX = rect.width / 2 - (n.x + w / 2);
+  state.canvas.panY = rect.height / 2 - (n.y + h / 2);
+  applyCanvasTransform();
+}
+
 // ---------- GLOBAL SEARCH ----------
 function highlight(text, query) {
   if (!query) return escapeHtml(text);
@@ -728,7 +1167,7 @@ function highlight(text, query) {
 function searchAll(rawQuery) {
   const q = rawQuery.trim().toLowerCase();
   if (!q) return null;
-  const results = { prompts: [], projects: [], characters: [], references: [], skills: [] };
+  const results = { prompts: [], projects: [], characters: [], references: [], skills: [], canvas: [] };
   for (const p of state.prompts) {
     const hay = `${p.title} ${p.content} ${p.theme}`.toLowerCase();
     if (hay.includes(q)) results.prompts.push(p);
@@ -740,6 +1179,10 @@ function searchAll(rawQuery) {
     const hay = `${s.name} ${s.fileName} ${s.content}`.toLowerCase();
     if (hay.includes(q)) results.skills.push(s);
   }
+  for (const n of state.canvas.nodes) {
+    const hay = `${n.name || ''} ${n.url || ''} ${n.text || ''}`.toLowerCase();
+    if (hay.includes(q)) results.canvas.push(n);
+  }
   return results;
 }
 
@@ -747,7 +1190,7 @@ function renderSearchResults(query) {
   const wrap = $('#search-results');
   if (!query.trim()) { wrap.hidden = true; wrap.innerHTML = ''; return; }
   const r = searchAll(query);
-  const empty = ['prompts','projects','characters','references','skills'].every(k => !r[k].length);
+  const empty = ['prompts','projects','characters','references','skills','canvas'].every(k => !r[k].length);
   if (empty) {
     wrap.innerHTML = `<div class="search-empty">Ничего не найдено по запросу <b>«${escapeHtml(query)}»</b></div>`;
     wrap.hidden = false;
@@ -802,6 +1245,17 @@ function renderSearchResults(query) {
       meta: escapeHtml(s.fileName),
     })),
   });
+  if (r.canvas.length) groups.push({
+    title: `Нейросети (${r.canvas.length})`,
+    items: r.canvas.slice(0, 5).map(n => ({
+      kind: 'canvas-node', id: n.id,
+      icon: n.type === 'button'
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="9" rx="2"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="13" x2="16" y2="13"/><line x1="4" y1="18" x2="13" y2="18"/></svg>',
+      title: highlight(n.type === 'button' ? (n.name || 'Без названия') : (n.text || 'Текст').slice(0, 60), query),
+      meta: n.type === 'button' ? (n.url || '—') : 'Текстовый блок',
+    })),
+  });
 
   wrap.innerHTML = groups.map(g => `
     <div class="search-group">
@@ -848,6 +1302,18 @@ async function navigateToSearchResult(kind, id, extra = {}) {
     if (!s) return;
     switchSection('skills');
     setTimeout(() => openSkillViewer(s), 80);
+  } else if (kind === 'canvas-node') {
+    const n = state.canvas.nodes.find(x => x.id === id);
+    if (!n) return;
+    switchSection('networks');
+    setTimeout(() => {
+      centerCanvasOnNode(n);
+      const el = $(`.canvas-node[data-id="${id}"]`);
+      if (el) {
+        el.classList.add('selected');
+        setTimeout(() => el.classList.remove('selected'), 1800);
+      }
+    }, 100);
   }
   closeSearchResults();
 }
@@ -865,6 +1331,10 @@ function switchSection(name) {
   $('#sidebar').classList.remove('open');
   if (name === 'references') showProjectsView();
   if (name === 'skills') renderSkills();
+  if (name === 'networks') {
+    initCanvasEvents();
+    loadCanvas();
+  }
   refreshNavState();
 }
 
@@ -945,6 +1415,30 @@ $('#fab').addEventListener('click', () => {
     else openProjectModal();
   } else if (state.section === 'skills') {
     $('#skills-file-input').click();
+  } else if (state.section === 'networks') {
+    addCanvasNode('button');
+  }
+});
+
+// Canvas toolbar
+document.addEventListener('click', (e) => {
+  const tool = e.target.closest('.canvas-tool');
+  if (!tool) return;
+  const add = tool.dataset.add;
+  if (add === 'button' || add === 'text') {
+    addCanvasNode(add);
+  } else if (tool.id === 'canvas-zoom-in' || tool.id === 'canvas-zoom-out') {
+    const wrap = $('#canvas-wrap');
+    const rect = wrap.getBoundingClientRect();
+    const mx = rect.width / 2, my = rect.height / 2;
+    const factor = tool.id === 'canvas-zoom-in' ? 1.25 : 0.8;
+    const newZoom = Math.max(0.25, Math.min(3, state.canvas.zoom * factor));
+    state.canvas.panX = mx - (mx - state.canvas.panX) * (newZoom / state.canvas.zoom);
+    state.canvas.panY = my - (my - state.canvas.panY) * (newZoom / state.canvas.zoom);
+    state.canvas.zoom = newZoom;
+    applyCanvasTransform();
+  } else if (tool.id === 'canvas-fit') {
+    fitCanvasToContent();
   }
 });
 
@@ -1105,10 +1599,12 @@ document.addEventListener('click', (e) => {
 // Search
 const searchInput = $('#global-search');
 const searchClear = $('#search-clear');
+const searchKbd   = $('#search-kbd');
 let searchTimer = null;
 searchInput.addEventListener('input', (e) => {
   const v = e.target.value;
   searchClear.hidden = !v;
+  if (searchKbd) searchKbd.hidden = !!v;
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => renderSearchResults(v), 120);
 });
@@ -1118,8 +1614,17 @@ searchInput.addEventListener('focus', () => {
 searchClear.addEventListener('click', () => {
   searchInput.value = '';
   searchClear.hidden = true;
+  if (searchKbd) searchKbd.hidden = false;
   $('#search-results').hidden = true;
   searchInput.focus();
+});
+// Ctrl/Cmd+K — focus search
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    searchInput.focus();
+    searchInput.select();
+  }
 });
 $('#search-results').addEventListener('click', (e) => {
   const item = e.target.closest('.search-item');
@@ -1135,13 +1640,15 @@ document.addEventListener('click', (e) => {
 // Export / Import
 $('#export-btn').addEventListener('click', async () => {
   const data = {
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     prompts:    await dbGetAll('prompts'),
     projects:   await dbGetAll('projects'),
     characters: await dbGetAll('characters'),
     references: await dbGetAll('references'),
     skills:     await dbGetAll('skills'),
+    canvas_nodes: await dbGetAll('canvas_nodes'),
+    canvas_edges: await dbGetAll('canvas_edges'),
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1165,14 +1672,17 @@ $('#import-file').addEventListener('change', async (e) => {
       text: 'Существующие записи будут дополнены или заменены при совпадении ID.',
       confirmText: 'Импорт',
       onConfirm: async () => {
-        for (const p of data.prompts    || []) await dbPut('prompts',    normalizePrompt(p));
-        for (const p of data.projects   || []) await dbPut('projects',   p);
-        for (const c of data.characters || []) await dbPut('characters', c);
-        for (const r of data.references || []) await dbPut('references', r);
-        for (const s of data.skills     || []) await dbPut('skills',     s);
+        for (const p of data.prompts      || []) await dbPut('prompts',      normalizePrompt(p));
+        for (const p of data.projects     || []) await dbPut('projects',     p);
+        for (const c of data.characters   || []) await dbPut('characters',   c);
+        for (const r of data.references   || []) await dbPut('references',   r);
+        for (const s of data.skills       || []) await dbPut('skills',       s);
+        for (const n of data.canvas_nodes || []) await dbPut('canvas_nodes', n);
+        for (const c of data.canvas_edges || []) await dbPut('canvas_edges', c);
         await loadPrompts();
         await loadProjectData();
         await loadSkills();
+        await loadCanvas();
         if (state.section === 'references' && state.currentProjectId) renderProjectDetail();
         else if (state.section === 'references') renderProjects();
         toast('Импорт завершён');
@@ -1189,6 +1699,8 @@ $('#import-file').addEventListener('change', async (e) => {
     await loadPrompts();
     await loadProjectData();
     await loadSkills();
+    state.canvas.nodes = await dbGetAll('canvas_nodes');
+    state.canvas.edges = await dbGetAll('canvas_edges');
     selectPromptCombo(DEFAULT_GROUP, DEFAULT_NETWORK);
   } catch (err) {
     console.error(err);
