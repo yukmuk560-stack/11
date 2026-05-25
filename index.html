@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Prompt Director</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -26,28 +29,110 @@
       </div>
 
       <nav class="nav">
-        <button class="nav-item active" data-section="prompts">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
-              <polyline points="10 9 9 9 8 9"/>
-            </svg>
-          </span>
-          <span class="nav-label">Промпты</span>
-        </button>
+        <!-- Промпты — раскрывающееся меню -->
+        <div class="nav-tree" id="nav-prompts-tree">
+          <button class="nav-item nav-parent open" data-toggle="prompts">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+            </span>
+            <span class="nav-label">Промпты</span>
+            <svg class="chevron" viewBox="0 0 12 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l5 5 5-5"/></svg>
+          </button>
+          <div class="nav-children open" data-children="prompts">
+            <!-- Универсальные -->
+            <button class="nav-subitem nav-parent open" data-toggle="universal" data-group="universal">
+              <span class="nav-label">Универсальные</span>
+              <svg class="chevron" viewBox="0 0 12 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l5 5 5-5"/></svg>
+            </button>
+            <div class="nav-children open" data-children="universal">
+              <button class="nav-leaf" data-group="universal" data-network="seedance">Seedance 2.0</button>
+              <button class="nav-leaf" data-group="universal" data-network="veo">VEO OMNI GOOGLE</button>
+              <button class="nav-leaf" data-group="universal" data-network="kling">KLING</button>
+            </div>
+
+            <!-- Трендовые -->
+            <button class="nav-subitem nav-parent" data-toggle="trending" data-group="trending">
+              <span class="nav-label">Трендовые</span>
+              <svg class="chevron" viewBox="0 0 12 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l5 5 5-5"/></svg>
+            </button>
+            <div class="nav-children" data-children="trending">
+              <button class="nav-leaf" data-group="trending" data-network="seedance">Seedance 2.0</button>
+              <button class="nav-leaf" data-group="trending" data-network="veo">VEO OMNI GOOGLE</button>
+              <button class="nav-leaf" data-group="trending" data-network="kling">KLING</button>
+            </div>
+
+            <!-- Разовые -->
+            <button class="nav-subitem nav-parent" data-toggle="oneoff" data-group="oneoff">
+              <span class="nav-label">Разовые</span>
+              <svg class="chevron" viewBox="0 0 12 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l5 5 5-5"/></svg>
+            </button>
+            <div class="nav-children" data-children="oneoff">
+              <button class="nav-leaf" data-group="oneoff" data-network="seedance">Seedance 2.0</button>
+              <button class="nav-leaf" data-group="oneoff" data-network="veo">VEO OMNI GOOGLE</button>
+              <button class="nav-leaf" data-group="oneoff" data-network="kling">KLING</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Projects -->
         <button class="nav-item" data-section="references">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <polyline points="21 15 16 10 5 21"/>
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
             </svg>
           </span>
-          <span class="nav-label">AI Image Reference</span>
+          <span class="nav-label">Projects</span>
         </button>
+
+        <!-- Нейросети (воркспейс) -->
+        <button class="nav-item" data-section="networks">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="6" cy="6" r="2.5"/>
+              <circle cx="18" cy="6" r="2.5"/>
+              <circle cx="12" cy="18" r="2.5"/>
+              <line x1="8" y1="7" x2="10.5" y2="16"/>
+              <line x1="16" y1="7" x2="13.5" y2="16"/>
+              <line x1="8.5" cy="6" x2="15.5" y2="6"/>
+            </svg>
+          </span>
+          <span class="nav-label">Нейросети</span>
+        </button>
+
+        <!-- Скиллы -->
+        <button class="nav-item" data-section="skills">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2l3 7h7l-5.5 4.5L18 22l-6-4-6 4 1.5-8.5L2 9h7z"/>
+            </svg>
+          </span>
+          <span class="nav-label">Скиллы</span>
+        </button>
+
+        <!-- Музыка -->
+        <div class="nav-tree" id="nav-music-tree">
+          <button class="nav-item nav-parent" data-toggle="music">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18V5l12-2v13"/>
+                <circle cx="6" cy="18" r="3"/>
+                <circle cx="18" cy="16" r="3"/>
+              </svg>
+            </span>
+            <span class="nav-label">Музыка</span>
+            <svg class="chevron" viewBox="0 0 12 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l5 5 5-5"/></svg>
+          </button>
+          <div class="nav-children" data-children="music">
+            <button class="nav-leaf music-leaf" data-music-tab="midi">MIDI</button>
+            <button class="nav-leaf music-leaf" data-music-tab="loops">Лупы</button>
+          </div>
+        </div>
       </nav>
 
       <div class="sidebar-footer">
@@ -72,21 +157,34 @@
     </aside>
 
     <main class="main">
+      <!-- Topbar with global search -->
+      <div class="topbar">
+        <div class="search-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" class="search-input" id="global-search" placeholder="Поиск по промптам, проектам, персонажам, скиллам, нейросетям…" autocomplete="off" />
+          <kbd class="search-kbd" id="search-kbd">Ctrl K</kbd>
+          <button class="search-clear" id="search-clear" hidden aria-label="Очистить всё">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+            <span class="search-clear-label">Очистить</span>
+          </button>
+          <div class="search-results" id="search-results" hidden></div>
+        </div>
+      </div>
+
       <!-- =================== PROMPTS =================== -->
       <section class="section active" id="prompts-section">
         <header class="section-header">
           <div>
             <h1 class="section-title">Промпты</h1>
-            <p class="section-subtitle">Текстовые промпты для нейросетей</p>
+            <p class="section-subtitle" id="prompts-breadcrumb">Универсальные · Seedance 2.0</p>
           </div>
         </header>
-
-        <div class="tabs">
-          <button class="tab active" data-network="seedance">Seedance 2.0</button>
-          <button class="tab" data-network="veo">VEO OMNI GOOGLE</button>
-          <button class="tab" data-network="kling">KLING</button>
-          <div class="tab-indicator" id="tab-indicator"></div>
-        </div>
 
         <div class="prompts-grid" id="prompts-list"></div>
       </section>
@@ -96,14 +194,15 @@
         <div id="projects-view">
           <header class="section-header">
             <div>
-              <h1 class="section-title">AI Image Reference</h1>
-              <p class="section-subtitle">Проекты и визуальные референсы</p>
+              <h1 class="section-title">Projects</h1>
+              <p class="section-subtitle">Проекты: персонажи с фото и биографией, скиллы</p>
             </div>
           </header>
           <div class="projects-grid" id="projects-list"></div>
         </div>
 
         <div id="project-detail-view" hidden>
+          <input type="file" id="project-skill-file-input" accept=".md,.skill,.txt,text/markdown,text/plain" multiple hidden />
           <header class="section-header detail-header">
             <button class="back-btn" id="back-to-projects">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
@@ -114,11 +213,161 @@
             </button>
             <div class="detail-title-block">
               <h1 class="section-title" id="project-title">Проект</h1>
-              <p class="section-subtitle" id="project-subtitle">Персонажи и референсы</p>
+              <p class="section-subtitle" id="project-subtitle">Персонажи и скиллы</p>
             </div>
           </header>
 
-          <div class="characters-list" id="characters-list"></div>
+          <!-- Project tabs -->
+          <div class="project-tabs">
+            <button class="project-tab active" data-project-tab="personas">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Персонажи
+            </button>
+            <button class="project-tab" data-project-tab="skills">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 2l3 7h7l-5.5 4.5L18 22l-6-4-6 4 1.5-8.5L2 9h7z"/></svg>
+              Скиллы проекта
+            </button>
+          </div>
+
+          <!-- Personas panel -->
+          <div class="project-panel active" id="project-personas-panel">
+            <div class="characters-list" id="characters-list"></div>
+          </div>
+
+          <!-- Skills panel -->
+          <div class="project-panel" id="project-skills-panel">
+            <div class="project-skills-wrap" id="project-skills-wrap"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================== NETWORKS WORKSPACE =================== -->
+      <section class="section" id="networks-section">
+        <header class="section-header">
+          <div>
+            <h1 class="section-title">Нейросети</h1>
+            <p class="section-subtitle">Воркспейс: ноды-кнопки и текстовые блоки на бесконечном холсте</p>
+          </div>
+        </header>
+
+        <div class="canvas-wrap" id="canvas-wrap">
+          <!-- Toolbar (NOT transformed) -->
+          <div class="canvas-toolbar">
+            <button class="canvas-tool" data-add="button" title="Добавить кнопку нейросети">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="3" y="8" width="18" height="9" rx="2"/><circle cx="12" cy="12.5" r="1.2" fill="currentColor"/></svg>
+              <span>Кнопка</span>
+            </button>
+            <button class="canvas-tool" data-add="text" title="Добавить текстовый блок">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="13" x2="16" y2="13"/><line x1="4" y1="18" x2="13" y2="18"/></svg>
+              <span>Текст</span>
+            </button>
+            <div class="canvas-divider"></div>
+            <button class="canvas-tool icon-only" id="canvas-zoom-in" title="Увеличить">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <span class="canvas-zoom-info" id="canvas-zoom">100%</span>
+            <button class="canvas-tool icon-only" id="canvas-zoom-out" title="Уменьшить">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <button class="canvas-tool icon-only" id="canvas-fit" title="Показать всё">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="4 9 4 4 9 4"/><polyline points="20 9 20 4 15 4"/><polyline points="4 15 4 20 9 20"/><polyline points="20 15 20 20 15 20"/></svg>
+            </button>
+          </div>
+
+          <!-- Transformed inner -->
+          <div class="canvas-inner" id="canvas-inner">
+            <svg class="canvas-edges" id="canvas-edges" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+                  <path d="M0,0 L10,5 L0,10 z" fill="rgba(168,85,247,0.7)"/>
+                </marker>
+              </defs>
+              <g id="canvas-edges-group"></g>
+            </svg>
+            <div class="canvas-nodes" id="canvas-nodes"></div>
+          </div>
+
+          <div class="canvas-hint" id="canvas-hint">
+            <div class="canvas-hint-title">Бесконечный холст</div>
+            <div>Нажмите <b>Кнопка</b> или <b>Текст</b> чтобы добавить ноду</div>
+            <div style="margin-top:6px; opacity:.7; font-size:11px;">
+              Зажмите фон — двигаете холст · колесо мыши — зум · тяните за <span style="color:var(--accent);">●</span> на боку ноды чтобы соединить
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="section" id="skills-section">
+        <header class="section-header">
+          <div>
+            <h1 class="section-title">Скиллы</h1>
+            <p class="section-subtitle">Файлы <code>.md</code> / <code>.skill</code> с инструкциями и шаблонами · <span style="color:var(--text-muted); font-size:12px;">ПКМ на «Скиллы» для загрузки</span></p>
+          </div>
+        </header>
+
+        <input type="file" id="skills-file-input" accept=".md,.skill,.txt,text/markdown,text/plain" multiple hidden />
+
+        <div class="skills-grid" id="skills-list"></div>
+      </section>
+      <!-- =================== MUSIC =================== -->
+      <section class="section" id="music-section">
+        <header class="section-header">
+          <div>
+            <h1 class="section-title">Музыка</h1>
+            <p class="section-subtitle">MIDI-файлы · Аудио лупы с плеером и визуализацией</p>
+          </div>
+        </header>
+
+        <!-- СКРЫТЫЕ ИНПУТЫ — вне зон, без label-конфликта -->
+        <input type="file" id="midi-file-input" accept=".mid,.midi" multiple style="display:none" />
+        <input type="file" id="loops-file-input" accept=".mp3,.wav,.ogg,.flac,.aiff,.aif,.zip" multiple style="display:none" />
+
+        <!-- Tabs -->
+        <div class="music-tabs">
+          <button class="music-tab active" data-tab="midi">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="2" y="8" width="4" height="8" rx="1"/><rect x="8" y="5" width="4" height="11" rx="1"/><rect x="14" y="8" width="4" height="8" rx="1"/><rect x="20" y="6" width="2" height="10" rx="1"/></svg>
+            MIDI
+          </button>
+          <button class="music-tab" data-tab="loops">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            Лупы
+          </button>
+        </div>
+
+        <!-- MIDI panel -->
+        <div class="music-panel active" id="music-midi-panel">
+          <div class="music-upload-zone" id="midi-upload-zone" role="button" tabindex="0">
+            <div class="muz-zone-glow"></div>
+            <div class="muz-zone-icon">
+              <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="40" height="40">
+                <rect x="3" y="13" width="7" height="14" rx="2"/>
+                <rect x="13" y="8" width="7" height="19" rx="2"/>
+                <rect x="23" y="13" width="7" height="14" rx="2"/>
+                <rect x="33" y="10" width="4" height="17" rx="2"/>
+              </svg>
+            </div>
+            <div class="muz-zone-title">Перетащите MIDI файлы сюда</div>
+            <div class="muz-zone-sub">или нажмите для выбора · <b>.mid / .midi</b> · несколько файлов</div>
+            <button class="muz-browse-btn" id="midi-browse-btn" type="button">Выбрать файлы</button>
+          </div>
+          <div class="midi-list" id="midi-list"></div>
+        </div>
+
+        <!-- Loops panel -->
+        <div class="music-panel" id="music-loops-panel">
+          <div class="music-upload-zone" id="loops-upload-zone" role="button" tabindex="0">
+            <div class="muz-zone-glow loops-glow"></div>
+            <div class="muz-zone-icon loops-icon">
+              <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="40" height="40">
+                <path d="M15 30V8l20-3v22"/>
+                <circle cx="10" cy="30" r="5"/>
+                <circle cx="30" cy="27" r="5"/>
+              </svg>
+            </div>
+            <div class="muz-zone-title">Перетащите аудио файлы или ZIP-архив</div>
+            <div class="muz-zone-sub"><b>.mp3 / .wav / .ogg / .flac</b> · ZIP с треками · несколько файлов</div>
+            <button class="muz-browse-btn loops-browse-btn" id="loops-browse-btn" type="button">Выбрать файлы</button>
+          </div>
+          <div class="loops-list" id="loops-list"></div>
         </div>
       </section>
     </main>
